@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вечный Рубеж — Eternal Frontiers</title>
+<style>
+:root{color-scheme:dark;--gold:#c9a66b;--line:#39434b;--panel:#171d23}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#26313a,#0b0e12 68%);color:#e8e1d5;font:16px system-ui,sans-serif;min-height:100vh}
+header{text-align:center;padding:24px 16px;border-bottom:1px solid var(--line);background:#0c1015}h1{margin:0;color:var(--gold);letter-spacing:.14em;font-size:clamp(25px,5vw,42px)}header p{margin:7px 0 0;color:#9da7ad}
+main{max-width:1050px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+button{font:inherit;background:#55432c;color:#fff1d8;border:1px solid var(--gold);padding:10px 15px;border-radius:7px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}.stats{display:flex;gap:9px;flex-wrap:wrap}.stat,.panel{background:linear-gradient(145deg,#202830,#12171c);border:1px solid var(--line);border-radius:10px;padding:12px}
+.board{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.hero{text-align:center;padding:16px;background:#20252b;border:1px solid var(--line);border-radius:10px}.hero h2{margin:4px;color:var(--gold)}.hp{font-size:29px;font-weight:800}.enemy .hp{color:#e17b72}.player .hp{color:#7fb9d9}
+.section-title{color:var(--gold);letter-spacing:.08em;margin:17px 0 8px;font-size:14px}.field,.hand{display:flex;gap:9px;flex-wrap:wrap;min-height:108px}
+.card{width:145px;min-height:137px;background:linear-gradient(160deg,#303943,#171c22);border:1px solid #68747c;border-radius:9px;padding:10px;display:flex;flex-direction:column;gap:6px;position:relative;text-align:left;color:#eee}
+.card.playable{cursor:pointer}.card.playable:hover{border-color:var(--gold);transform:translateY(-2px)}.card .cost{position:absolute;top:7px;right:8px;background:#386b8b;border-radius:50%;width:25px;height:25px;text-align:center;padding-top:2px}.card b{padding-right:25px;color:#f0d5a3}.card small{color:#b5c0c5}.card em{margin-top:auto;color:#8fc1d7;font-style:normal;font-size:12px}.empty{color:#7e898f;padding:18px}.log{height:120px;overflow:auto;font-size:13px;color:#aeb8bd;line-height:1.55}.note{color:#8e9aa1;font-size:12px}.footer{text-align:center;color:#68747c;padding:22px;font-size:12px}
+@media(max-width:560px){main{padding:12px}.card{width:calc(50% - 5px);min-height:130px}.board{gap:7px}.hero{padding:10px}}
+</style>
+</head>
+<body>
+<header><h1>ВЕЧНЫЙ РУБЕЖ</h1><p>ETERNAL FRONTIERS · карточная стратегия</p></header>
+<main>
+<div class="top">
+ <div><b>Операция «Последний бастион»</b><div class="note">Вы — командор оборонительного гарнизона. Удержите рубеж.</div></div>
+ <div class="stats"><div class="stat">Раунд: <b id="turn">1</b></div><div class="stat">Мана: <b id="mana">1/1</b></div></div>
+ <button id="endTurn">Завершить ход</button>
+</div>
+<div class="board">
+ <div class="hero enemy"><h2>Страж Пустоты</h2><div class="hp" id="enemyHp">30</div><small>Командир противника</small></div>
+ <div class="hero player"><h2>Командор Рубежа</h2><div class="hp" id="playerHp">30</div><small>Ваш командир</small></div>
+</div>
+<div class="section-title">ПОЛЕ БОЯ — ПРОТИВНИК</div><div class="field panel" id="enemyField"><span class="empty">Вражеское поле пусто</span></div>
+<div class="section-title">ПОЛЕ БОЯ — ВАШ ОТРЯД</div><div class="field panel" id="playerField"><span class="empty">Ваш отряд ожидает приказа</span></div>
+<div class="section-title">ВАША РУКА — нажмите на карту, чтобы разыграть её</div><div class="hand" id="hand"></div>
+<div class="section-title">ЖУРНАЛ ОПЕРАЦИИ</div><div class="panel log" id="log">Командор, связь установлена. Ожидаем ваших приказов.</div>
+<div class="top" style="margin-top:16px"><button id="restart">Начать заново</button><span class="note">Прототип v0.1 · одиночная игра против ИИ</span></div>
+</main>
+<div class="footer">Eternal Frontiers — оригинальная научно-фантастическая вселенная</div>
+<script>
+const cards=[
+ {name:"Пограничный стрелок",cost:1,attack:1,hp:2,desc:"Боец передовой линии"},
+ {name:"Полевой медик",cost:2,attack:1,hp:3,desc:"Поддержка гарнизона"},
+ {name:"Штурмовой ветеран",cost:3,attack:3,hp:2,desc:"Закалённый солдат"},
+ {name:"Дозорный дрон",cost:2,attack:2,hp:1,desc:"Быстрый разведчик"},
+ {name:"Тяжёлый экзокостюм",cost:4,attack:3,hp:5,desc:"Бронированный боец"},
+ {name:"Артиллерийский расчёт",cost:4,attack:4,hp:3,desc:"Огневая поддержка"},
+ {name:"Командир бастиона",cost:5,attack:4,hp:5,desc:"Офицер гарнизона"},
+ {name:"Орудие «Гром»",cost:6,attack:6,hp:5,desc:"Тяжёлая огневая платформа"},
+ {name:"Аварийный ремонт",cost:2,type:"spell",desc:"Восстановить герою 4 здоровья"},
+ {name:"Карательный залп",cost:3,type:"spell",desc:"Нанести вражескому командиру 3 урона"}
+];
+let s;
+const el=id=>document.getElementById(id);
+function say(message){el("log").innerHTML=message+"<br>"+el("log").innerHTML}
+function shuffledDeck(){let d=[...cards,...cards,...cards];for(let i=d.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]]}return d}
+function draw(n=1){for(let i=0;i<n&&s.deck.length;i++)s.hand.push({...s.deck.pop(),uid:Math.random()})}
+function start(){s={turn:1,mana:1,maxMana:1,playerHp:30,enemyHp:30,deck:shuffledDeck(),hand:[],player:[],enemy:[],over:false};draw(3);el("log").textContent="";say("Операция началась. Выберите карты и сформируйте отряд.");render()}
+function cardMarkup(c,index){let stats=c.type==="spell"?"ПРИКАЗ":`⚔ ${c.attack}　♥ ${c.health}`;return `<button class="card playable" data-index="${index}"><span class="cost">${c.cost}</span><b>${c.name}</b><small>${c.desc}</small><em>${stats}</em></button>`}
+function unitMarkup(c){return `<div class="card"><span class="cost">${c.cost}</span><b>${c.name}</b><small>${c.desc}</small><em>⚔ ${c.attack}　♥ ${c.health}/${c.hp}</em></div>`}
+function play(index){if(s.over)return;const c=s.hand[index];if(!c||c.cost>s.mana)return;s.mana-=c.cost;s.hand.splice(index,1);
+ if(c.type==="spell"){if(c.name==="Аварийный ремонт"){const old=s.playerHp;s.playerHp=Math.min(30,s.playerHp+4);say(`Медицинские системы восстановили ${s.playerHp-old} здоровья.`)}else{s.enemyHp-=3;say("Карательный залп наносит 3 урона командиру противника.")}}
+ else{s.player.push({...c,health:c.hp});say(`${c.name} вступает в бой.`)}
+ checkEnd();render()}
+function attackPhase(){for(const unit of s.player){if(unit.health>0&&s.enemyHp>0){s.enemyHp-=unit.attack;say(`${unit.name} атакует вражеского командира: ${unit.attack} урона.`)}}}
+function enemyPhase(){const affordable=s.deck.filter(c=>c.cost<=s.maxMana);if(affordable.length){const c=affordable.sort((a,b)=>b.cost-a.cost)[0];s.enemy.push({...c,health:c.hp});s.deck.splice(s.deck.indexOf(c),1);say(`Противник выставляет: ${c.name}.`)}
+ for(const unit of s.enemy){if(unit.health>0){s.playerHp-=unit.attack;say(`Вражеский ${unit.name} наносит ${unit.attack} урона вашему командиру.`)}}
+ s.player=s.player.filter(u=>u.health>0)}
+function checkEnd(){if(s.playerHp<=0){s.playerHp=0;s.over=true;say("ПОРАЖЕНИЕ. Бастион пал.");}else if(s.enemyHp<=0){s.enemyHp=0;s.over=true;say("ПОБЕДА! Командир Пустоты повержен.");}}
+function endTurn(){if(s.over)return;attackPhase();checkEnd();if(s.over){render();return}enemyPhase();checkEnd();if(s.over){render();return}s.turn++;s.maxMana=Math.min(10,s.maxMana+1);s.mana=s.maxMana;draw();render()}
+function render(){el("turn").textContent=s.turn;el("mana").textContent=`${s.mana}/${s.maxMana}`;el("playerHp").textContent=s.playerHp;el("enemyHp").textContent=s.enemyHp;el("hand").innerHTML=s.hand.length?s.hand.map(cardMarkup).join(""):'<span class="empty">В руке нет карт</span>';el("playerField").innerHTML=s.player.length?s.player.map(unitMarkup).join(""):'<span class="empty">Ваш отряд ожидает приказа</span>';el("enemyField").innerHTML=s.enemy.length?s.enemy.map(unitMarkup).join(""):'<span class="empty">Вражеское поле пусто</span>';el("endTurn").disabled=s.over;document.querySelectorAll("#hand .card").forEach(btn=>{const c=s.hand[Number(btn.dataset.index)];btn.disabled=s.over||c.cost>s.mana;btn.style.opacity=btn.disabled?".48":"1"})}
+el("hand").addEventListener("click",e=>{const b=e.target.closest("button[data-index]");if(b)play(Number(b.dataset.index))});
+el("endTurn").addEventListener("click",endTurn);el("restart").addEventListener("click",start);start();
+</script>
+</body>
+</html>
